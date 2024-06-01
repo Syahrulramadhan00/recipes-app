@@ -1,93 +1,82 @@
-import * as z from 'valibot';
+import * as v from 'valibot';
 
-const recipeSchema = z.object({
-  id: z.number(),
-  title: z.string(),
-  image: z.optional(z.string()),
-  imageType: z.optional(z.string()),
-  servings: z.number(),
-  readyInMinutes: z.number(),
-  sourceUrl: z.string(),
-  summary: z.string(),
-  analyzedInstructions: z.array(z.object({
-    name: z.string(),
-    steps: z.array(z.object({
-      number: z.number(),
-      step: z.string(),
-      ingredients: z.array(z.object({
-        id: z.number(),
-        name: z.string(),
-        localizedName: z.optional(z.string()),
-        image: z.optional(z.string())
-      })),
-      equipment: z.array(z.object({
-        id: z.number(),
-        name: z.string(),
-        localizedName: z.optional(z.string()),
-        image: z.optional(z.string())
-      }))
-    }))
-  })),
-  extendedIngredients: z.array(z.object({
-    id: z.number(),
-    name: z.string(),
-    nameClean: z.nullable(z.string()),
-    original: z.string(),
-    originalName: z.string(),
-    amount: z.number(),
-    unit: z.string(),
-    meta: z.array(z.string()),
-    measures: z.object({
-      us: z.object({
-        amount: z.number(),
-        unitShort: z.string(),
-        unitLong: z.string()
-      }),
-      metric: z.object({
-        amount: z.number(),
-        unitShort: z.string(),
-        unitLong: z.string()
-      })
-    })
-  })),
-  diets: z.array(z.string()),
-  dishTypes: z.array(z.string()),
-  cuisines: z.array(z.string()),
-  instructions: z.string()
+const recipeSchema = v.object({
+    id: v.number(),
+    title: v.string(),
+    image: v.optional(v.string()),
+    imageType: v.optional(v.string()),
+    servings: v.number(),
+    readyInMinutes: v.number(),
+    sourceUrl: v.string(),
+    summary: v.string(),
+    analyzedInstructions: v.array(v.object({
+        name: v.string(),
+        steps: v.array(v.object({
+            number: v.number(),
+            step: v.string(),
+            ingredients: v.array(v.object({
+                id: v.number(),
+                name: v.string(),
+                localizedName: v.string(),
+                image: v.string()
+            })),
+            equipment: v.array(v.object({
+                id: v.number(),
+                name: v.string(),
+                localizedName: v.string(),
+                image: v.string()
+            }))
+        }))
+    })),
+    extendedIngredients: v.array(v.object({
+        id: v.number(),
+        name: v.string(),
+        nameClean: v.optional(v.string()),
+        original: v.string(),
+        originalName: v.string(),
+        amount: v.number(),
+        unit: v.string(),
+        image: v.nullable (v.string()),
+        meta: v.array(v.string()),
+        measures: v.object({
+            us: v.object({
+                amount: v.number(),
+                unitShort: v.string(),
+                unitLong: v.string()
+            }),
+            metric: v.object({
+                amount: v.number(),
+                unitShort: v.string(),
+                unitLong: v.string()
+            })
+        })
+    })),
+    diets: v.array(v.string()),
+    dishTypes: v.array(v.string()),
+    cuisines: v.array(v.string()),  
+    instructions: v.string()
 });
 
-export default defineCachedEventHandler(async (event) => {
-  console.log('Making fresh request');
+export default defineCachedEventHandler(async event => {
+    console.log('making fresh request');
 
-  const config = useRuntimeConfig();
-  const apiKey = config.spoonacular.apiKey;
-
-  if (!apiKey) {
-    console.error('API key is missing');
-    throw new Error('API key is missing');
-  }
-
-  try {
-    const { recipes } = await $fetch('https://api.spoonacular.com/recipes/random', {
-      query: {
-        limitLicense: true,
-        number: 100,
-        apiKey: apiKey
-      }
+    const { recipes } = await $fetch<{ recipes: unknown }>('https://api.spoonacular.com/recipes/random', {
+        query: {
+            limitLicense: true,
+            number: 100,
+            apiKey: useRuntimeConfig().spoonacular.apiKey
+        }
     });
 
-    return z.array(recipeSchema).parse(recipes);
-  } catch (e) {
-    console.error('Error fetching recipes:', e.message);
-    if (e.issues) {
-      console.error('Validation errors:', JSON.stringify(e.issues.map(i => i.path)));
+    try {
+        return v.parse(v.array(recipeSchema), recipes);
+    } catch (e) {
+        console.log(e.issues.map(i => i.path));
     }
-    return [];
-  }
 }, {
-  base: 'recipes',
-  getKey: () => 'recipes',
-  shouldBypassCache: () => false,
-  maxAge: 1000 * 60 * 60 * 24,
-  staleMaxAge: 1000 * 60 * 60 * 24 * 7
+    base: 'recipes',
+    getKey: () => 'recipes',
+    shouldBypassCache: () => false,
+    maxAge: 1000 * 60 * 60 * 24,
+    staleMaxAge: 1000 * 60 * 60 * 24 * 7
 });
